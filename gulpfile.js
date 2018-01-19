@@ -14,12 +14,28 @@ const sourcemaps = require("gulp-sourcemaps");
 const rename = require("gulp-rename");
 const concat = require("gulp-concat");
 const mergeStream = require("merge-stream");
+const browserSync = require("browser-sync").create();
 
 const basePath = "./Website/Portals/_default/Skins/Xcillion/";
+const jsGlobs = [basePath + "**/*.js", "!" + basePath + "**/*.min.js"];
+const imgGlobs = [
+  basePath + "**/*.jpg",
+  basePath + "**/*.png",
+  basePath + "**/*.svg",
+  basePath + "**/*.gif"
+];
+const lessGlobs = [basePath + "**/*.less"];
+const sassGlobs = [basePath + "**/*.scss"];
+const stylusGlobs = [basePath + "**/*.styl"];
+const cssGlobs = [
+  basePath + "**/*.css",
+  "!" + basePath + "**/*.min.css",
+  "!" + basePath + "skin.css"
+];
 
 function jsCompile() {
   return gulp
-    .src([basePath + "**/*.js", "!" + basePath + "**/*.min.js"])
+    .src(jsGlobs)
     .pipe(sourcemaps.init())
     .pipe(babel({ presets: ["env"] }))
     .pipe(uglify())
@@ -32,7 +48,7 @@ jsCompile.description =
 
 function jsLint() {
   return gulp
-    .src([basePath + "**/*.js", "!" + basePath + "**/*.min.js"])
+    .src(jsGlobs)
     .pipe(eslint())
     .pipe(eslint.format());
   ////.pipe(eslint.failAfterError());
@@ -46,12 +62,7 @@ gulp.task(js);
 
 function img() {
   return gulp
-    .src([
-      basePath + "**/*.jpg",
-      basePath + "**/*.png",
-      basePath + "**/*.svg",
-      basePath + "**/*.gif"
-    ])
+    .src(imgGlobs)
     .pipe(imagemin())
     .pipe(gulp.dest(basePath));
 }
@@ -60,23 +71,19 @@ gulp.task(img);
 
 function css() {
   const lessStream = gulp
-    .src(basePath + "**/*.less")
+    .src(lessGlobs)
     .pipe(sourcemaps.init())
     .pipe(less());
   const sassStream = gulp
-    .src(basePath + "**/*.scss")
+    .src(sassGlobs)
     .pipe(sourcemaps.init())
     .pipe(sass());
   const stylusStream = gulp
-    .src(basePath + "**/*.styl")
+    .src(stylusGlobs)
     .pipe(sourcemaps.init())
     .pipe(stylus());
   const cssStream = gulp
-    .src([
-      basePath + "**/*.css",
-      "!" + basePath + "**/*.min.css",
-      "!" + basePath + "skin.css"
-    ])
+    .src(cssGlobs)
     .pipe(sourcemaps.init())
     .pipe(postcss([cssnext()]));
 
@@ -85,7 +92,8 @@ function css() {
     .pipe(postcss([autoprefixer()]))
     .pipe(cleanCss())
     .pipe(sourcemaps.write("."))
-    .pipe(gulp.dest(basePath));
+    .pipe(gulp.dest(basePath))
+    .pipe(browserSync.stream({ match: "**/*.css" }));
 }
 css.description =
   "Compile all Less, Sass, Stylus into CSS, combine into one file, and minify";
@@ -95,3 +103,32 @@ const defaultTask = gulp.parallel(js, css, img);
 defaultTask.displayName = "default";
 defaultTask.description = "Process JS, CSS, and image files";
 gulp.task(defaultTask);
+
+function reload(done) {
+  browserSync.reload();
+  done();
+}
+
+const jsWatch = () => gulp.watch(jsGlobs, gulp.series(js, reload));
+const imgWatch = () => gulp.watch(imgGlobs, img);
+const cssWatch = () =>
+  gulp.watch(
+    lessGlobs
+      .concat(sassGlobs)
+      .concat(stylusGlobs)
+      .concat(cssGlobs),
+    css
+  );
+
+function proxy(done) {
+  browserSync.init({
+    proxy: "gulp.local"
+  });
+  done();
+}
+
+const watch = gulp.parallel(proxy, jsWatch, imgWatch, cssWatch);
+watch.displayName = "watch";
+watch.description =
+  "Watch for JS, CSS, and image changes, and start Browsersync";
+gulp.task(watch);
