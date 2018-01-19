@@ -1,6 +1,7 @@
 const gulp = require("gulp");
 const babel = require("gulp-babel");
 const uglify = require("gulp-uglify");
+const eslint = require("gulp-eslint");
 const less = require("gulp-less");
 const sass = require("gulp-sass");
 const stylus = require("gulp-stylus");
@@ -15,7 +16,8 @@ const concat = require("gulp-concat");
 const mergeStream = require("merge-stream");
 
 const basePath = "./Website/Portals/_default/Skins/Xcillion/";
-function js() {
+
+function jsCompile() {
   return gulp
     .src([basePath + "**/*.js", "!" + basePath + "**/*.min.js"])
     .pipe(sourcemaps.init())
@@ -25,8 +27,21 @@ function js() {
     .pipe(sourcemaps.write("."))
     .pipe(gulp.dest(basePath));
 }
-js.description =
+jsCompile.description =
   "Transpile with Babel, minify with Uglify, add .min filename suffix, write sourcemaps";
+
+function jsLint() {
+  return gulp
+    .src([basePath + "**/*.js", "!" + basePath + "**/*.min.js"])
+    .pipe(eslint())
+    .pipe(eslint.format());
+  ////.pipe(eslint.failAfterError());
+}
+jsLint.description = "Lint JS for correctness issues";
+
+const js = gulp.parallel(jsCompile, jsLint);
+js.displayName = "js";
+js.description = "Transpile and lint JS";
 gulp.task(js);
 
 function img() {
@@ -76,7 +91,7 @@ css.description =
   "Compile all Less, Sass, Stylus into CSS, combine into one file, and minify";
 gulp.task(css);
 
-const defaultTask = gulp.parallel("js", "css", "img");
+const defaultTask = gulp.parallel(js, css, img);
 defaultTask.displayName = "default";
 defaultTask.description = "Process JS, CSS, and image files";
 gulp.task(defaultTask);
