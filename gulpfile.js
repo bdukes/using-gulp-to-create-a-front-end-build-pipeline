@@ -1,3 +1,6 @@
+/* eslint-env node */
+
+const yargs = require("yargs");
 const gulp = require("gulp");
 const babel = require("gulp-babel");
 const uglify = require("gulp-uglify");
@@ -13,8 +16,11 @@ const imagemin = require("gulp-imagemin");
 const sourcemaps = require("gulp-sourcemaps");
 const rename = require("gulp-rename");
 const concat = require("gulp-concat");
+const gulpIf = require("gulp-if");
 const mergeStream = require("merge-stream");
 const browserSync = require("browser-sync").create();
+
+const args = yargs.boolean("fix").argv;
 
 const basePath = "./Website/Portals/_default/Skins/Xcillion/";
 const jsGlobs = [basePath + "**/*.js", "!" + basePath + "**/*.min.js"];
@@ -47,11 +53,14 @@ jsCompile.description =
   "Transpile with Babel, minify with Uglify, add .min filename suffix, write sourcemaps";
 
 function jsLint() {
-  return gulp
-    .src(jsGlobs)
-    .pipe(eslint())
-    .pipe(eslint.format());
-  ////.pipe(eslint.failAfterError());
+  return (
+    gulp
+      .src(jsGlobs)
+      .pipe(eslint({ fix: args.fix }))
+      .pipe(eslint.format())
+      ////.pipe(eslint.failAfterError())
+      .pipe(gulpIf(args.fix, gulp.dest(basePath)))
+  );
 }
 jsLint.description = "Lint JS for correctness issues";
 
